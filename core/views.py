@@ -2,138 +2,152 @@ from django.http import Http404
 
 from rest_framework import status
 from rest_framework.generics import ListAPIView, CreateAPIView, UpdateAPIView
+from django.views.generic import CreateView, UpdateView, ListView, DeleteView, DetailView
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rre.authentication import SessionTokenAuthentication
-from rre.permission import CustomPermission
-from utils import mongo_utils, ui_utils
+# from rre.authentication import SessionTokenAuthentication
+from rre_test.permission import CustomPermission
+# from utils import mongo_utils, ui_utils
 
-from .models import Client
-from .serializers import ClientSerializer, ClientAutoCompleteSerializer, ClientUpdateSerializer
+# from .models import Client
+# from .serializers import ClientSerializer, ClientAutoCompleteSerializer, ClientUpdateSerializer
+
+from core.models import ProfileModel
+
+
+from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.views import ObtainAuthToken
+
+from . serializers import CustomerSerializer
+from django.contrib.auth.models import User
+
+
+class CustomAuthToken(ObtainAuthToken):
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data,
+                                           context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        token, _ = Token.objects.get_or_create(user=user)
+        token = self.token_expire_handler(token)
+        return Response({'token': token.key})
+
+    # this return left time
+    @staticmethod
+    def expires_in(token):
+        time_elapsed = timezone.now() - token.created
+        left_time = timedelta(
+            seconds=settings.TOKEN_EXPIRED_AFTER_SECONDS) - time_elapsed
+        return left_time
+
+    # token checker if token expired or not
+    def is_token_expired(self, token):
+        return self.expires_in(token) < timedelta(seconds=0)
+
+    # If token is expired new token will be provided
+    # If token is expired then it will be removed and new one with different key will be created
+    def token_expire_handler(self, token):
+        is_expired = self.is_token_expired(token)
+        if is_expired:
+            token.delete()
+            token = Token.objects.create(user=token.user)
+        return token
+
+
+obtain_auth_token = CustomAuthToken.as_view()
 
 
 class FEView(APIView):
-    authentication_classes = [SessionTokenAuthentication]
+    # authentication_classes = [SessionTokenAuthentication]
     permission_classes = [CustomPermission]
+
     @staticmethod
     def config(db):
         return mongo_utils.get_system_configuration_with_db(db)
 
 
-class CustomPagination(CursorPagination):
-    page_size = 20
-    page_size_query_param = 'page_size'
-    max_page_size = 1000
-    ordering = '-id'
-
-
-class Logout(FEView):
-    def post(self, request):
-        # simply delete the token to force a login
-        request.user.auth_token.delete()
-        return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
-
-
-class ClientAutoComplete(FEView):
-
-    permissions_required = {"GET": 'CLIENT_AUTOCOMPLETE'}
-
-    def get(self, request, client=None):
-        if client:
-            clients = Client.objects.filter(name__startswith=client)[:10]
-        else:
-            clients = Client.objects.all()[:10]
-        clients = ClientAutoCompleteSerializer(clients, many=True)
-        return Response(data={'results': clients.data})
-
-
-class AccountAutoComplete(FEView):
-
-    permissions_required = {"GET": 'ACCOUNT_AUTOCOMPLETE'}
+class CheckCanViewPremissionView(FEView):
+    permissions_required = {"GET": 'can_view_permission'}
 
     def get(self, request):
-        db = request.mongodb
-        account = request.query_params.get('q', '')
-        if account:
-            key = "^" + account
-            accounts = db['accounts'].find({"id_": {"$regex": key}}).limit(15)
-        result = [{'id': i['id_'], 'name': i['id_']} for i in accounts]
-        return Response(data={'results': result})
+        content = {'message': 'Hello ! can view permission'}
+        return Response(content)
 
 
-class ClientsView(ListAPIView, FEView):
+class CheckCanAddPremissionView(FEView):
+    permissions_required = {"GET": 'can_view_permission'}
 
-    permissions_required = {"GET": 'CLIENTS_LIST_VIEW'}
-
-    pagination_class = CustomPagination
-    queryset = Client.objects.select_related('user').filter(is_active=True)
-    serializer_class = ClientSerializer
-
-
-class ClientAddView(CreateAPIView, FEView):
-
-    permissions_required = {"POST": 'CLIENT_ADD'}
-    print('client Add View')
-    # serializer_class = ClientSerializer
+    def get(self, request):
+        content = {'message': 'Hello ! can add permission'}
+        return Response(content)
 
 
-class ClientEditView(UpdateAPIView, FEView):
-
-    permissions_required = {"PUT": 'CLIENT_EDIT'}
-
-    queryset = Client.objects.all()
-    serializer_class = ClientUpdateSerializer
+# customer api
 
 
-class ClientDeleteView(FEView):
+class CustomerList(FEView):
+    permissions_required = {
+        "GET": 'can_view_permission', "POST": 'can_add_permission'}
 
-    permissions_required = {"DELETE": 'CLIENT_DELETE'}
+    def get(self, request):
+        if self.request.user.is_superuser:
+            custs = User.objects.all()
+        else:
+            custs = User.objects.filter(
+                profile__owner_assigned=self.request.user)
+        customers = custs
+        serializer = CustomerSerializer(customers, many=True)
+        return Response(serializer.data)
 
-    def delete(self, request, pk, format=None):
+    def post(self, request, format=None):
+        serializer = CustomerSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CustomerDetail(APIView):
+    permissions_required = {
+        "GET": 'can_view_permission', "PUT": 'can_change_permission', "DELETE": 'can_delete_permission'}
+
+    def get(self,  *args, **kwargs):
         try:
-            client = Client.objects.filter(is_active=True).get(pk=pk)
-        except Client.DoesNotExist:
+            if self.request.user.is_superuser:
+                customer = User.objects.get(id=self.kwargs['id'])
+            else:
+                customer = User.objects.filter(
+                    profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
+            serializer = CustomerSerializer(instance=customer)
+            return Response(serializer.data)
+        except User.DoesNotExist:
             raise Http404
-        client.is_active = False
-        user_ = client.user
-        user_.is_active = False
-        client.save()
-        user_.save()
-        return Response({"detail": "Deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
+    def put(self, request, *args, **kwargs):
+        try:
+            if self.request.user.is_superuser:
+                customer = User.objects.get(id=self.kwargs['id'])
+            else:
+                customer = User.objects.filter(
+                    profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
+            serializer = CustomerSerializer(customer, data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            raise Http404
 
-class SystemSettings(FEView):
-
-    permissions_required = {"POST": 'SYS_SETTINGS_ADD'}
-
-    def post(self, request):
-        thresholds = ui_utils.build_system_settings(self.config(request.mongodb))
-        return Response({'thresholds': thresholds})
-
-
-class SystemSettingsUpdate(FEView):
-
-    permissions_required = {"POST": 'SYS_SETTINGS_UPDATE'}
-
-    def post(self, request):
-        thresholds = ui_utils.build_new_system_settings(self.config(request.mongodb), request.data['thresholds'])
-        return Response({'thresholds': thresholds})
-
-
-class RulesConfig(FEView):
-
-    permissions_required = {"POST": 'RULES_CONFIG_ADD'}
-
-    def post(self, request):
-        rules = ui_utils.build_rules_from_config(self.config(request.mongodb))
-        return Response({'rules': rules})
-
-
-class RulesUpdate(FEView):
-
-    permissions_required = {"POST": 'RULES_CONFIG_UPDATE'}
-
-    def post(self, request):
-        rules = ui_utils.build_new_rules(self.config(request.mongodb), request.data['rules'])
-        return Response({'rules': rules})
+    def delete(self, request, *args, **kwargs):
+        try:
+            if self.request.user.is_superuser:
+                customer = User.objects.get(id=self.kwargs['id'])
+            else:
+                customer = User.objects.filter(
+                    profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
+            customer.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except User.DoesNotExist:
+            raise Http404

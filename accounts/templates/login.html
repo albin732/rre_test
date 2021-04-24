@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+
+{% block content %}
+
+<div class="container">
+  <div class="row">
+      <div class="col-md-2 col-sm-2">
+         </div>
+
+      <div class="col-md-6 col-sm-6 col-xs-12">
+          <div class="form-signin">
+
+  <h2 class="form-signin-heading">LogIn</h2>
+  <div class="login-wrap">
+
+      <form method="post" action="/login/">
+          {% csrf_token %}
+          
+          <div class="login-wrap">
+              <input type="text"  id="username" name="username" class="form-control" placeholder="Username, email or Mobile" autofocus>
+
+              <input type="password" id="pwd" name="password" class="form-control" placeholder="Password">
+              {% if err_msg %}
+              <div class="alert alert-danger">{{err_msg}}</div>
+              {% else %}
+              {% endif %}
+              <button class="btn btn-lg btn-login btn-block btn-filled" type="submit" id="btnLogin"
+                                  style="text-transform: capitalize;">Login</button>
+              <!-- <button class="btn btn-lg btn-login btn-block btn-filled" id="login1234" >Submit</button> -->
+      </form>
+    
+      <label class="checkbox">
+          <input type="checkbox" value="remember-me" class="base-title-color"> Stay signed in
+          <span class="pull-right">
+              <a data-toggle="modal" href="#myModal" class="base-title-color"> Forgot Username?</a>
+
+          </span>
+      </label>
+      <a class="" href="/registeration/">
+          <button class="btn btn-lg btn-login btn-block btn-outline">
+              Create an account
+          </button>
+      </a>
+  </div>
+
+{% endblock %}

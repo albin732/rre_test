@@ -1,45 +1,26 @@
 from django.db import models
-
-# Create your models here.
-from accounts.models import User
-from django.db.models.signals import pre_save
-from django.dispatch import receiver
+from django.contrib.auth.models import User
+from accounts.models import Role, Permission
 
 
-class ClientsManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(is_active=True)
-
-
-# client model
-class Client(models.Model):
-    name = models.CharField(max_length=15)
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    owner_assigned = models.ManyToManyField(User,related_name='owner_assigned')
-    short_name = models.CharField(max_length=7)
+class ProfileModel(models.Model):
+    user = models.OneToOneField(
+        User, related_name='profile', on_delete=models.CASCADE)
+    role = models.ForeignKey(
+        Role, on_delete=models.CASCADE, null=True, blank=True)
+    owner_assigned = models.ManyToManyField(
+        User, related_name='owner_assigned', blank=True, default=None)
+    short_name = models.CharField(max_length=7, null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
-    objects = models.Manager()
-    actives = ClientsManager()
+    class Meta:
+        db_table = "profile"
 
     def __str__(self):
-        return self.name
+        return str(self.user)
 
+    def save(self, *args, **kwargs):
+        super(ProfileModel, self).save(*args, **kwargs)
 
-# client config
-class ClientConfig(models.Model):
-    client = models.OneToOneField(Client, on_delete=models.CASCADE)
-    db_name = models.CharField(max_length=15)
-    host = models.CharField(max_length=30, default='localhost')
-    port = models.CharField(max_length=5, null=True, blank=True)
-
-    def __str__(self):
-        return self.client.name + " db config"
-
-
-# custom user
-@receiver(pre_save, sender=ClientConfig)
-def mongo_db(sender, instance, *args, **kwargs):
-    # here, Check if user is not master_admin , sub_admin
-    if not instance.db_name:
-        instance.db_name = "db_" + instance.client.name.replace(' ', '').lower()
+    def all_permissions(self):
+        return Permission.objects.filter(permissiongroup__role=self.role)
