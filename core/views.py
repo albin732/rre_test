@@ -19,7 +19,8 @@ from core.models import ProfileModel
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 
-from . serializers import CustomerSerializer
+# from . serializers import CustomerSerializer
+from . serializers import UserProfileSerializer, UserSerializer
 from django.contrib.auth.models import User
 
 
@@ -69,7 +70,7 @@ class FEView(APIView):
 
 
 class CheckCanViewPremissionView(FEView):
-    permissions_required = {"GET": 'can_view_permission'}
+    # permissions_required = {"GET": 'can_view_permission'}
 
     def get(self, request):
         content = {'message': 'Hello ! can view permission'}
@@ -77,62 +78,78 @@ class CheckCanViewPremissionView(FEView):
 
 
 class CheckCanAddPremissionView(FEView):
-    permissions_required = {"GET": 'can_view_permission'}
+    # permissions_required = {"GET": 'can_view_permission'}
 
     def get(self, request):
         content = {'message': 'Hello ! can add permission'}
         return Response(content)
 
 
-# customer api
+class AssignedUsers:
+    def get_users(self, id):
+        usr = 0
+        print(User.objects.get(id=id))
+        try:
+            if self.request.user.is_superuser:
+                usr = User.objects.get(id=self.kwargs['id'])
+            else:
+                usr = User.objects.filter(
+                    profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
+            print(usr)
+        except:
+            pass
+        return usr
 
 
-class CustomerList(FEView):
-    permissions_required = {
-        "GET": 'can_view_permission', "POST": 'can_add_permission'}
+'''user api (user+profile)'''
+
+# View all users
+
+
+class UserList(FEView):
+    permissions_required = {"GET": 'core_profile_read'}
 
     def get(self, request):
         if self.request.user.is_superuser:
-            custs = User.objects.all()
+            users = User.objects.all()
         else:
-            custs = User.objects.filter(
+            users = User.objects.filter(
                 profile__owner_assigned=self.request.user)
-        customers = custs
-        serializer = CustomerSerializer(customers, many=True)
+
+        serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 
-    def post(self, request, format=None):
-        serializer = CustomerSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-class CustomerDetail(APIView):
-    permissions_required = {
-        "GET": 'can_view_permission', "PUT": 'can_change_permission', "DELETE": 'can_delete_permission'}
+# View single user detail
+class UserDetail(FEView):
+    permissions_required = {"GET": 'core_profile_read'}
 
     def get(self,  *args, **kwargs):
         try:
             if self.request.user.is_superuser:
-                customer = User.objects.get(id=self.kwargs['id'])
+                usr = User.objects.get(id=self.kwargs['id'])
+                print(AssignedUsers.get_users(self, self.kwargs['id']))
             else:
-                customer = User.objects.filter(
+                usr = User.objects.filter(
                     profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
-            serializer = CustomerSerializer(instance=customer)
+            serializer = UserSerializer(instance=usr)
             return Response(serializer.data)
         except User.DoesNotExist:
             raise Http404
 
+
+# change single user detail
+class UserChange(FEView):
+    permissions_required = {"PUT": 'core_profile_update'}
+
     def put(self, request, *args, **kwargs):
         try:
             if self.request.user.is_superuser:
-                customer = User.objects.get(id=self.kwargs['id'])
+                usr = User.objects.get(id=self.kwargs['id'])
             else:
-                customer = User.objects.filter(
+                usr = User.objects.filter(
                     profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
-            serializer = CustomerSerializer(customer, data=request.data)
+            serializer = UserSerializer(usr, data=request.data)
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data)
@@ -140,14 +157,118 @@ class CustomerDetail(APIView):
         except User.DoesNotExist:
             raise Http404
 
+
+# Create single user
+class UserCreate(FEView):
+    permissions_required = {"POST": 'core_profile_create'}
+
+    def post(self, request, format=None):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Delete single User
+class UserDelete(FEView):
+    permissions_required = {"DELETE": 'core_profile_delete'}
+
     def delete(self, request, *args, **kwargs):
         try:
             if self.request.user.is_superuser:
-                customer = User.objects.get(id=self.kwargs['id'])
+                usr = User.objects.get(id=self.kwargs['id'])
             else:
-                customer = User.objects.filter(
+                usr = User.objects.filter(
                     profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
-            customer.delete()
+            usr.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         except User.DoesNotExist:
             raise Http404
+
+
+# partial Update single User
+class UserPatch(FEView):
+    permissions_required = {"PATCH": 'core_profile_patch'}
+
+    def patch(self, request, pk):
+        if self.request.user.is_superuser:
+            usr = User.objects.get(id=self.kwargs['id'])
+        else:
+            usr = User.objects.filter(
+                profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
+        print(usr)
+        serializer = UserSerializer(usr, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(code=201, data=serializer.data)
+        return JsonResponse(code=400, data="wrong parameters")
+
+
+# customer api
+
+
+# class CustomerList(FEView):
+#     permissions_required = {
+#         "GET": 'can_view_permission', "POST": 'can_add_permission'}
+
+#     def get(self, request):
+#         if self.request.user.is_superuser:
+#             custs = User.objects.all()
+#         else:
+#             custs = User.objects.filter(
+#                 profile__owner_assigned=self.request.user)
+#         customers = custs
+#         serializer = CustomerSerializer(customers, many=True)
+#         return Response(serializer.data)
+
+#     def post(self, request, format=None):
+#         serializer = CustomerSerializer(data=request.data)
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# class CustomerDetail(APIView):
+#     permissions_required = {
+#         "GET": 'can_view_permission', "PUT": 'can_change_permission', "DELETE": 'can_delete_permission'}
+
+#     def get(self,  *args, **kwargs):
+#         try:
+#             if self.request.user.is_superuser:
+#                 customer = User.objects.get(id=self.kwargs['id'])
+#             else:
+#                 customer = User.objects.filter(
+#                     profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
+#             serializer = CustomerSerializer(instance=customer)
+#             return Response(serializer.data)
+#         except User.DoesNotExist:
+#             raise Http404
+
+#     def put(self, request, *args, **kwargs):
+#         try:
+#             if self.request.user.is_superuser:
+#                 customer = User.objects.get(id=self.kwargs['id'])
+#             else:
+#                 customer = User.objects.filter(
+#                     profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
+#             serializer = CustomerSerializer(customer, data=request.data)
+#             if serializer.is_valid():
+#                 serializer.save()
+#                 return Response(serializer.data)
+#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#         except User.DoesNotExist:
+#             raise Http404
+
+#     def delete(self, request, *args, **kwargs):
+#         try:
+#             if self.request.user.is_superuser:
+#                 customer = User.objects.get(id=self.kwargs['id'])
+#             else:
+#                 customer = User.objects.filter(
+#                     profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
+#             customer.delete()
+#             return Response(status=status.HTTP_204_NO_CONTENT)
+#         except User.DoesNotExist:
+#             raise Http404

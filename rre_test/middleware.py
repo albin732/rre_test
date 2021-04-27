@@ -27,7 +27,7 @@ class MongoDBSelectorMiddleware(MiddlewareMixin):
                 request.user = user
                 perm_group = request.user.profile.all_permissions()
                 request.permissions = [
-                    i.name for i in perm_group] if user.profile.role else []
+                    i.codename for i in perm_group] if user.profile.role else []
 
             except Token.DoesNotExist:
                 pass

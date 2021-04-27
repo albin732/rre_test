@@ -11,7 +11,7 @@ class ProfileModel(models.Model):
     owner_assigned = models.ManyToManyField(
         User, related_name='owner_assigned', blank=True, default=None)
     short_name = models.CharField(max_length=7, null=True, blank=True)
-    is_active = models.BooleanField(default=True)
+    # is_active = models.BooleanField(default=True)
 
     class Meta:
         db_table = "profile"
