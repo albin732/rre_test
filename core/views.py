@@ -23,6 +23,9 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from . serializers import UserProfileSerializer, UserSerializer
 from django.contrib.auth.models import User
 
+from django.utils import timezone
+from datetime import timedelta
+
 
 class CustomAuthToken(ObtainAuthToken):
 
@@ -32,29 +35,30 @@ class CustomAuthToken(ObtainAuthToken):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         token, _ = Token.objects.get_or_create(user=user)
-        token = self.token_expire_handler(token)
-        return Response({'token': token.key})
+        # token = self.token_expire_handler(token)
+        # return Response({'token': token.key})
+        return Response(f'Token {token.key}')
 
-    # this return left time
-    @staticmethod
-    def expires_in(token):
-        time_elapsed = timezone.now() - token.created
-        left_time = timedelta(
-            seconds=settings.TOKEN_EXPIRED_AFTER_SECONDS) - time_elapsed
-        return left_time
+    # # this return left time
+    # @staticmethod
+    # def expires_in(token):
+    #     time_elapsed = timezone.now() - token.created
+    #     left_time = timedelta(
+    #         seconds=settings.TOKEN_EXPIRED_AFTER_SECONDS) - time_elapsed
+    #     return left_time
 
-    # token checker if token expired or not
-    def is_token_expired(self, token):
-        return self.expires_in(token) < timedelta(seconds=0)
+    # # token checker if token expired or not
+    # def is_token_expired(self, token):
+    #     return self.expires_in(token) < timedelta(seconds=0)
 
-    # If token is expired new token will be provided
-    # If token is expired then it will be removed and new one with different key will be created
-    def token_expire_handler(self, token):
-        is_expired = self.is_token_expired(token)
-        if is_expired:
-            token.delete()
-            token = Token.objects.create(user=token.user)
-        return token
+    # # If token is expired new token will be provided
+    # # If token is expired then it will be removed and new one with different key will be created
+    # def token_expire_handler(self, token):
+    #     is_expired = self.is_token_expired(token)
+    #     if is_expired:
+    #         token.delete()
+    #         token = Token.objects.create(user=token.user)
+    #     return token
 
 
 obtain_auth_token = CustomAuthToken.as_view()
@@ -87,18 +91,16 @@ class CheckCanAddPremissionView(FEView):
 
 class AssignedUsers:
     def get_users(self, id):
-        usr = 0
-        print(User.objects.get(id=id))
         try:
             if self.request.user.is_superuser:
-                usr = User.objects.get(id=self.kwargs['id'])
+                usr = User.objects.get(id=id)
             else:
                 usr = User.objects.filter(
-                    profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
-            print(usr)
+                    profile__owner_assigned=self.request.user).get(id=id)
+            return usr
         except:
             pass
-        return usr
+        return
 
 
 '''user api (user+profile)'''
@@ -112,9 +114,11 @@ class UserList(FEView):
     def get(self, request):
         if self.request.user.is_superuser:
             users = User.objects.all()
-        else:
+        elif self.request.user.profile.is_subadmin():
             users = User.objects.filter(
                 profile__owner_assigned=self.request.user)
+        elif self.request.user.profile.is_customer():
+            users = User.objects.filter(username=self.request.user)
 
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
@@ -125,13 +129,18 @@ class UserDetail(FEView):
     permissions_required = {"GET": 'core_profile_read'}
 
     def get(self,  *args, **kwargs):
+        # self.request.user.profile.is_subadmin()
         try:
+
             if self.request.user.is_superuser:
                 usr = User.objects.get(id=self.kwargs['id'])
-                print(AssignedUsers.get_users(self, self.kwargs['id']))
-            else:
+            elif self.request.user.profile.is_subadmin():
                 usr = User.objects.filter(
                     profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
+            elif self.request.user.profile.is_customer():
+                usr = User.objects.get(id=self.request.user.id)
+
+            # usr = print(AssignedUsers.get_users(self, self.kwargs['id']))
             serializer = UserSerializer(instance=usr)
             return Response(serializer.data)
         except User.DoesNotExist:
@@ -146,9 +155,11 @@ class UserChange(FEView):
         try:
             if self.request.user.is_superuser:
                 usr = User.objects.get(id=self.kwargs['id'])
-            else:
+            elif self.request.user.profile.is_subadmin():
                 usr = User.objects.filter(
                     profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
+            elif self.request.user.profile.is_customer():
+                usr = User.objects.get(id=self.request.user.id)
             serializer = UserSerializer(usr, data=request.data)
             if serializer.is_valid():
                 serializer.save()
@@ -163,10 +174,11 @@ class UserCreate(FEView):
     permissions_required = {"POST": 'core_profile_create'}
 
     def post(self, request, format=None):
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        if self.request.user.is_superuser | self.request.user.profile.is_subadmin():
+            serializer = UserSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -178,7 +190,7 @@ class UserDelete(FEView):
         try:
             if self.request.user.is_superuser:
                 usr = User.objects.get(id=self.kwargs['id'])
-            else:
+            elif self.request.user.profile.is_subadmin():
                 usr = User.objects.filter(
                     profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
             usr.delete()
@@ -191,10 +203,10 @@ class UserDelete(FEView):
 class UserPatch(FEView):
     permissions_required = {"PATCH": 'core_profile_patch'}
 
-    def patch(self, request, pk):
+    def patch(self, request, *args, **kwargs):
         if self.request.user.is_superuser:
             usr = User.objects.get(id=self.kwargs['id'])
-        else:
+        elif self.request.user.profile.is_subadmin():
             usr = User.objects.filter(
                 profile__owner_assigned=self.request.user).get(id=self.kwargs['id'])
         print(usr)

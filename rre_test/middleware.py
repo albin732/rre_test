@@ -11,13 +11,17 @@ from rest_framework.authtoken.models import Token
 # from utils.mongo_utils import initialize_mongo_instance
 # from core.models import ClientConfig
 
+# create token
+# python manage.py drf_create_token user_name
+
 
 class MongoDBSelectorMiddleware(MiddlewareMixin):
 
     def process_request(self, request):
         header_token = request.META.get('HTTP_AUTHORIZATION', None)
-        # header_token = 'b436c73f2cef4faaab0172f6943869ca89cfff38' q
-        # a1@a.com bd1d969b932db8ad3760baf57661b33ac62af155
+        # header_token = 'b436c73f2cef4faaab0172f6943869ca89cfff38' for user q
+        # Generated token bd1d969b932db8ad3760baf57661b33ac62af155 for user a1@a.com
+        # Generated token 169558d53cf231ebd11e879ae6e293fcfb19bbaa for user c1@c.com
         if header_token is not None:
             try:
                 token = sub('Token ', '', request.META.get(

@@ -24,3 +24,9 @@ class ProfileModel(models.Model):
 
     def all_permissions(self):
         return Permission.objects.filter(permissiongroup__role=self.role)
+
+    def is_subadmin(self):
+        return str(self.role) == 'sub_admin'
+
+    def is_customer(self):
+        return str(self.role) == 'customer'

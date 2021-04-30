@@ -61,7 +61,7 @@ ROOT_URLCONF = 'rre_test.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR , 'templates', BASE_DIR , 'accounts/templates', BASE_DIR , 'customer/templates', BASE_DIR , 'blog/templates'],
+        'DIRS': [BASE_DIR, 'templates', BASE_DIR, 'accounts/templates', BASE_DIR, 'customer/templates', BASE_DIR, 'blog/templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -80,10 +80,12 @@ WSGI_APPLICATION = 'rre_test.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
 
+# CURRENT_DIR = '/mnt/vault/af/scrap/rre_test/'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        # 'NAME': CURRENT_DIR + 'db.sqlite3',
     }
 }
 

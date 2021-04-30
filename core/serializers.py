@@ -28,6 +28,20 @@ class UserSerializer(serializers.ModelSerializer):
                   'date_joined', 'last_login', 'is_active', 'profile']
         depth = 1
 
+    # def partial_update(self, request, *args, **kwargs):
+    #     kwargs['partial'] = True
+    #     return self.update(request, *args, **kwargs)
+
+    # def update(self, request, *args, **kwargs):
+    #     partial = kwargs.pop('partial', False)
+    #     profile_data = validated_data.pop('profile')
+    #     profile = instance.profile
+    #     instance = self.get_object()
+    #     serializer = self.get_serializer(instance, data=request.data, partial=partial)
+    #     serializer.is_valid(raise_exception=True)
+    #     self.perform_update(serializer)
+    #     return Response(serializer.data)
+
     def update(self, instance, validated_data):
         profile_data = validated_data.pop('profile')
         profile = instance.profile
