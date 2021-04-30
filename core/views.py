@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from django.http import Http404
 
 from rest_framework import status
@@ -200,10 +201,13 @@ class UserDelete(FEView):
 
 
 # partial Update single User
+
+
 class UserPatch(FEView):
     permissions_required = {"PATCH": 'core_profile_patch'}
 
     def patch(self, request, *args, **kwargs):
+        print('patch...')
         if self.request.user.is_superuser:
             usr = User.objects.get(id=self.kwargs['id'])
         elif self.request.user.profile.is_subadmin():
@@ -213,8 +217,10 @@ class UserPatch(FEView):
         serializer = UserSerializer(usr, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return JsonResponse(code=201, data=serializer.data)
-        return JsonResponse(code=400, data="wrong parameters")
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        #     return JsonResponse(code=201, data=serializer.data)
+        # return JsonResponse(code=400, data="wrong parameters")
 
 
 # customer api

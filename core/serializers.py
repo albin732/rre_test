@@ -45,21 +45,29 @@ class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         profile_data = validated_data.pop('profile')
         profile = instance.profile
-
         # User
+        instance.username = validated_data.get(
+            None, instance.username)
         instance.first_name = validated_data.get(
             'first_name', instance.first_name)
-        instance.username = validated_data.get(
-            'username', instance.username)
         instance.is_active = validated_data.get(
             'is_active', instance.is_active)
         instance.save()
 
+        for key, value in profile_data.items():
+            if(key == 'owner_assigned'):
+                profile.owner_assigned.set(value)
+            elif(key == 'short_name'):
+                profile.short_name = value
+            profile.save()
+            print(key, value)
+
         # Profile
-        profile.owner_assigned.set(profile_data['owner_assigned'])
-        profile.short_name = profile_data.get(
-            'short_name', profile.short_name)
-        profile.save()
+        # profile_data.owner_assigned.set(
+        #     profile_data['owner_assigned'], profile.owner_assigned)
+        # profile_data.short_name = profile_data.get(
+        #     'short_name', profile.short_name)
+        # profile_data.save()
 
         return instance
 
