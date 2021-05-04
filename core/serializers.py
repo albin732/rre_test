@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import ProfileModel
+from .models import Profile
 
 
 # class CustomerSerializer(serializers.ModelSerializer):
@@ -12,7 +12,7 @@ from .models import ProfileModel
 class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = ProfileModel
+        model = Profile
         fields = ['owner_assigned', 'short_name']
 
 

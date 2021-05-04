@@ -4,9 +4,10 @@ from django.contrib import messages
 
 from accounts.forms import SignUpForm
 from accounts.models import PermissionGroup
-from core.models import ProfileModel
+from core.models import Profile
 # from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+
 
 class SignUp(View):
 
@@ -22,9 +23,10 @@ class SignUp(View):
             # user.profile.save()
             # permission Group add
             # iusr_group = PermissionGroup.objects.get(name='sub_admin_perm')
-            # iusr_group.user_set.add(user)  
+            # iusr_group.user_set.add(user)
+            print(request.user)
             usr = User.objects.get(username=request.user)
-            user.profile.owner_assigned.add(usr) 
+            user.profile.owner_assigned.add(usr)
             user.profile.save()
             messages.success(request, 'Account created successfully')
             return redirect('/signup')

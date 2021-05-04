@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'core',
-    'blog'
 ]
 
 MIDDLEWARE = [
@@ -61,7 +60,7 @@ ROOT_URLCONF = 'rre_test.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR, 'templates', BASE_DIR, 'accounts/templates', BASE_DIR, 'customer/templates', BASE_DIR, 'blog/templates'],
+        'DIRS': [BASE_DIR, 'templates', BASE_DIR, 'accounts/templates', BASE_DIR, 'core/templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

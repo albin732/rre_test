@@ -1,17 +1,17 @@
-# from django.contrib.auth.models import AbstractUser
 from django.db import models
-
-# modulename_model_permission
-# core_profile_create
-# core_profile_read
-# core_profile_update
-# core_profile_delete
+"""
+Permission Naming Standards
+modulename_modelname_permission
+core_profile_create
+core_profile_read
+core_profile_update
+core_profile_delete
+"""
 
 
 class Permission(models.Model):
     name = models.CharField(max_length=255, blank=True, null=True)
     codename = models.CharField(max_length=100, blank=True, null=True)
-    # content_type = models.IntegerField(blank=True,null=True)
 
     def __str__(self):
         return self.name
