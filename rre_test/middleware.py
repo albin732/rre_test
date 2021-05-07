@@ -7,6 +7,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.utils.deprecation import MiddlewareMixin
 
 from rest_framework.authtoken.models import Token
+from core.models import Profile
 
 # from utils.mongo_utils import initialize_mongo_instance
 # from core.models import ClientConfig
@@ -29,9 +30,13 @@ class MongoDBSelectorMiddleware(MiddlewareMixin):
                 token_obj = Token.objects.get(key=token)
                 user = token_obj.user
                 request.user = user
-                perm_group = request.user.profile.all_permissions()
+                # user_permissions = request.user.profile.all_permissions()
+                user_permissions = Profile.profiles.all_permissions(
+                    request.user)
+                print('permissions...')
+                print(user_permissions)
                 request.permissions = [
-                    i.codename for i in perm_group] if user.profile.role else []
+                    i.codename for i in user_permissions] if user.profile.role else []
 
             except Token.DoesNotExist:
                 pass

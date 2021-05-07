@@ -3,12 +3,6 @@ from django.contrib.auth.models import User
 from .models import Profile
 
 
-# class CustomerSerializer(serializers.ModelSerializer):
-
-#     class Meta:
-#         model = User
-#         fields = ['id', 'username', 'first_name', 'is_superuser']
-
 class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -27,20 +21,6 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['username', 'first_name',
                   'date_joined', 'last_login', 'is_active', 'profile']
         depth = 1
-
-    # def partial_update(self, request, *args, **kwargs):
-    #     kwargs['partial'] = True
-    #     return self.update(request, *args, **kwargs)
-
-    # def update(self, request, *args, **kwargs):
-    #     partial = kwargs.pop('partial', False)
-    #     profile_data = validated_data.pop('profile')
-    #     profile = instance.profile
-    #     instance = self.get_object()
-    #     serializer = self.get_serializer(instance, data=request.data, partial=partial)
-    #     serializer.is_valid(raise_exception=True)
-    #     self.perform_update(serializer)
-    #     return Response(serializer.data)
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop('profile')
@@ -61,14 +41,6 @@ class UserSerializer(serializers.ModelSerializer):
                 profile.short_name = value
             profile.save()
             print(key, value)
-
-        # Profile
-        # profile_data.owner_assigned.set(
-        #     profile_data['owner_assigned'], profile.owner_assigned)
-        # profile_data.short_name = profile_data.get(
-        #     'short_name', profile.short_name)
-        # profile_data.save()
-
         return instance
 
     def create(self, validated_data):

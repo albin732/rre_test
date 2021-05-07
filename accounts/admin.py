@@ -8,18 +8,14 @@ class AdmPermission(admin.ModelAdmin):
     list_display = ('name',)
 
 
-admin.site.register(Permission, AdmPermission)
-
-
 class AdmPermissionGroup(admin.ModelAdmin):
     list_display = ('name',)
-
-
-admin.site.register(PermissionGroup, AdmPermissionGroup)
 
 
 class AdmRole(admin.ModelAdmin):
     list_display = ('name',)
 
 
+admin.site.register(Permission, AdmPermission)
+admin.site.register(PermissionGroup, AdmPermissionGroup)
 admin.site.register(Role, AdmRole)
